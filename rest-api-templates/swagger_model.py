@@ -367,6 +367,7 @@ class Operation(Stringify):
     def __init__(self):
         self.http_method = None
         self.nickname = None
+        self.nickname_lc = None
         self.response_class = None
         self.parameters = []
         self.summary = None
@@ -378,6 +379,7 @@ class Operation(Stringify):
         validate_required_fields(op_json, self.required_fields, context)
         self.http_method = op_json.get('httpMethod')
         self.nickname = op_json.get('nickname')
+        self.nickname_lc = self.nickname.lower() 
         response_class = op_json.get('responseClass')
         self.response_class = response_class and SwaggerType().load(
             response_class, processor, context)
@@ -501,6 +503,7 @@ class Model(Stringify):
 
     def __init__(self):
         self.id = None
+        self.id_lc = None
         self.subtypes = []
         self.__subtype_types = []
         self.notes = None
@@ -514,6 +517,7 @@ class Model(Stringify):
         validate_required_fields(model_json, self.required_fields, context)
         # The duplication of the model's id is required by the Swagger spec.
         self.id = model_json.get('id')
+        self.id_lc = self.id.lower() 
         if id != self.id:
             raise SwaggerError("Model id doesn't match name", context)
         self.subtypes = model_json.get('subTypes') or []
@@ -550,6 +554,9 @@ class Model(Stringify):
 
     def extends(self):
         return self.__extends_type and self.__extends_type.id
+
+    def extends_lc(self):
+        return self.__extends_type and self.__extends_type.id_lc
 
     def set_extends_type(self, extends_type):
         self.__extends_type = extends_type
