@@ -1894,6 +1894,18 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 	return ret;
 }
 
+int ast_app_group_all_callback(ao2_callback_fn *callback, int flags);
+
+struct group_list_entry {
+	struct ast_str *group;                         /*!< A group assignment is group@category, this is the group part  */
+	struct ast_str *category;                      /*!< This is the category part */
+	int transfer_fixup:1;                          /*!< Whether we will run a fixup on masquerade */
+
+	struct group_data_store *group_store;          /*!< The group_data_store we live on. (Type: struct tie_data_store *) */
+
+	AST_LIST_ENTRY(group_list_entry) entries;    /*!< Next group */
+};
+
 static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
@@ -1944,6 +1956,62 @@ static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 		regfree(&regexbuf);
 
 	ast_cli(a->fd, "%d active channel%s\n", numchans, ESS(numchans));
+	return CLI_SUCCESS;
+#undef FORMAT_STRING
+}
+
+static char *group_show_variables(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+#define FORMAT_STRING     "%-20s  %-20s\n"
+#define FORMAT_STRING_VAR "     %s=%s\n"
+
+	struct ast_group_meta *gmi = NULL;
+	struct varshead *headp;
+	struct ast_var_t *variable = NULL;
+	int numgroups = 0;
+	char group[80];
+	char category[80];
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "group show variables";
+		e->usage =
+			"Usage: group show variables [group@[category]]\n"
+			"       Lists all currently active groups and their variables.\n"
+			"       Optional group, or group@category can be used to only show a specific group\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+
+	if (a->argc == 4) {
+		if (ast_app_group_split_group(a->argv[3], group, sizeof(group), category, sizeof(category))) {
+			return NULL;
+		}
+	}
+
+	ast_cli(a->fd, "Group   Category\n   Variables\n");
+
+	/* Print group variables */
+	ast_app_group_meta_rdlock();
+	gmi = ast_app_group_meta_head();
+	while (gmi) {
+		ast_cli(a->fd, FORMAT_STRING, gmi->group, (strcmp(gmi->category, "") ? gmi->category : "(Default)"));
+                numgroups++;
+                headp = &gmi->varshead;
+
+		AST_LIST_TRAVERSE(headp, variable, entries) {
+			ast_cli(a->fd, FORMAT_STRING_VAR, ast_var_name(variable), ast_var_value(variable));
+		}
+
+		gmi = AST_LIST_NEXT(gmi, group_meta_list);
+	}
+	ast_app_group_meta_unlock();
+
+	ast_cli(a->fd, "%d active group%s\n", numgroups, ESS(numgroups));
 	return CLI_SUCCESS;
 #undef FORMAT_STRING
 }
@@ -2021,7 +2089,6 @@ static struct ast_cli_entry cli_cli[] = {
 	AST_CLI_DEFINE(handle_debug, "Set level of debug chattiness"),
 	AST_CLI_DEFINE(handle_trace, "Set level of trace chattiness"),
 	AST_CLI_DEFINE(handle_verbose, "Set level of verbose chattiness"),
-
 	AST_CLI_DEFINE(handle_help, "Display help list, or specific help on a command"),
 	AST_CLI_DEFINE(handle_logger_mute, "Toggle logging output to a console"),
 
@@ -2052,6 +2119,7 @@ static struct ast_cli_entry cli_channels_cli[] = {
 	AST_CLI_DEFINE(handle_showchan, "Display information on a specific channel"),
 	AST_CLI_DEFINE(handle_core_set_debug_channel, "Enable/disable debugging on a channel"),
 	AST_CLI_DEFINE(group_show_channels, "Display active channels with group(s)"),
+	AST_CLI_DEFINE(group_show_variables, "Display active channels with group(s), along with group variables"),
 	AST_CLI_DEFINE(handle_softhangup, "Request a hangup on a given channel"),
 };
 

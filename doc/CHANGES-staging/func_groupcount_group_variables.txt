@@ -1,0 +1,47 @@
+Subject: func_groupcount
+
+Adding Group Variables and additional Group functions
+
+DumpGroups
+-------------------
+* New application.  This will dump all channel group membership and associated
+  variables
+
+Groups and Group Variables
+------------------
+ * Group variables can be set on a group once the group is created
+   When a group is destroyed, all variables on that group are also destroyed
+
+   A group variable is somewhat like a global variable on a per-group basis.
+
+   GroupSet - Adds functionality to the manager to be able to set a GROUP()
+              on a channel.
+   GroupsShowChannels - Show each channel and it's associated groups
+                        (a channel will be repeated for each group@category
+                         it's a member of)
+   GroupsShowVariables - Show variables in each group@category, one event per
+                         group, all variables are contained in each
+                         group@category event
+   GroupVarSet - Set a group variable (the group must already exist)
+   GroupVarGet - Get a group variable
+
+ * New Manager events:
+   ------------------
+   GroupCreate - Event is fired any time a group is made,
+                 ie: Set(GROUP=x) or Set(GROUP()=x@y).
+                 This event is only sent on when a channel is added to a group
+                 that did not exist previously.
+   GroupChannelAdd - Event is fired any time a channel is added to a group
+   GroupChannelRemove - Event is fired any time a channel is removed from a
+                        group
+   GroupDestroy - Event is fired when there are no longer any channels assigned
+                  to the group
+   GroupVarSet - Event is fired when any group variable is changed
+
+ * New CLI Command
+   ---------------
+   group show variables
+
+ * New Application
+   ---------------
+   DumpGroups() - Show groups and group assigments (similar to DumpChan)
