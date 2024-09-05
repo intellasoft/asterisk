@@ -1322,6 +1322,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		int numlines = prestart;
 		struct ast_channel *winner;
 		struct ast_channel *watchers[AST_MAX_WATCHERS];
+		int wait_remaining;
 
 		watchers[pos++] = in;
 		AST_LIST_TRAVERSE(out_chans, o, node) {
@@ -1348,7 +1349,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 			}
 			SCOPE_EXIT_RTN_VALUE(NULL, "%s: No outgoing channels available\n", ast_channel_name(in));
 		}
-		winner = ast_waitfor_n(watchers, pos, to_answer);
+
+		/* We want to check up on which ever timer is ending the soonest  */
+		wait_remaining = MIN(*to_answer, *to_progress);
+		wait_remaining = MIN(wait_remaining, 1000);
+		winner = ast_waitfor_n(watchers, pos, wait_remaining);
+
 		AST_LIST_TRAVERSE(out_chans, o, node) {
 			int res = 0;
 			struct ast_frame *f;
